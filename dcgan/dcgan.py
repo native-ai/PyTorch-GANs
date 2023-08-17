@@ -9,7 +9,9 @@ class Discriminator(nn.Module):
             nn.LeakyReLU(0.2),
             self._block(in_channels = features_d, out_channels = features_d * 2, kernel_size = 4, stride = 2, padding = 1),
             self._block(in_channels = features_d * 2, out_channels = features_d * 4, kernel_size = 4, stride = 2, padding = 1),
-            self._block(in_channels = features_d * 4, out_channels = features_d * 8, kernel_size = 4, stride = 2, padding = 1)
+            self._block(in_channels = features_d * 4, out_channels = features_d * 8, kernel_size = 4, stride = 2, padding = 1),
+            nn.Conv2d(features_d * 8, 1, kernel_size = 4, stride = 2, padding = 0),
+            nn.Sigmoid()
         )
 
     def _block(self, in_channels, out_channels, kernel_size, stride, padding):
@@ -18,3 +20,5 @@ class Discriminator(nn.Module):
             nn.BatchNorm2d(out_channels),
             nn.LeakyReLU(0.2), 
         )
+
+ 
