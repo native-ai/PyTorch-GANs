@@ -3,3 +3,14 @@
     GANs PyTorch Implementations    
   </h1>
 </div>
+
+## Introduction
+The main aim of this repository is to implement each Generative Adversarial Network with extra features by using PyTorch. 
+
+### Contents
+* Basic GAN PyTorch Implementation
+* DCGAN PyTorch Implementation
+
+
+### Features 
+- [ ] Support pip installation
