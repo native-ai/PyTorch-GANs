@@ -3,9 +3,10 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
+import torchvision.utils
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-
+from tqdm import tqdm
 class Discriminator(nn.Module):
     def __init__(self, img_shape, features_d):
         super().__init__()
@@ -85,11 +86,47 @@ discriminator = Discriminator(IMG_SHAPE, FEATURES_D).to(device)
 initialize_weights(generator)
 initialize_weights(discriminator)
 optimizer_gen = optim.Adam(generator.parameters(), lr = LEARNING_RATE, betas = (0.5, 0.999))
-optimizer_disc = optim.Adam(discriminator.parameters(), lr = LEARNING_RATE, beats = (0.5, 0.999))
+optimizer_disc = optim.Adam(discriminator.parameters(), lr = LEARNING_RATE, betas = (0.5, 0.999))
+criterion = nn.BCELoss()
 
 fixed_noise = torch.randn(32, LATENT_DIM, 1, 1).to(device)
+writer_fake = SummaryWriter(f"logs/fake")
+writer_real = SummaryWriter(f"logs/real")
+step = 0
 
+for epoch in tqdm(range(EPOCHS)):
+    for batch_idx, (real, _) in enumerate(data_loader):
+        real = real.to(device)
+        noise = torch.randn(BATCH_SIZE, LATENT_DIM, 1, 1).to(device)
+        fake = generator(noise)
 
+        discriminator_real = discriminator(real).view(-1)
+        loss_disc_real = criterion(discriminator_real, torch.ones_like(discriminator_real))
+        discriminator_fake = discriminator(fake)
+        loss_disc_fake = criterion(discriminator_fake, torch.zeros_like(discriminator_fake))
+        loss_disc = (loss_disc_real + loss_disc_fake) / 2
+        discriminator.zero_grad()
+        loss_disc.backward(retain_graph = True)
+        optimizer_disc.step()
+
+        output = discriminator(fake).view(-1)
+        loss_gen = criterion(output, torch.ones_like(output))
+        generator.zero_grad()
+        loss_gen.backward()
+        optimizer_gen.step()
+
+        if batch_idx == 0:
+            print(f"[Epoch {epoch} / {EPOCHS} \nDiscriminator Loss: {loss_disc:.4f}, Generator Loss: {loss_gen:.4f}")
+
+            with torch.no_grad():
+                fake = generator(fixed_noise)
+                img_grid_fake = torchvision.utils.make_grid(real, normalize = True)
+                img_grid_real = torchvision.utils.make_grid(fake, normalize = True)
+
+                writer_fake.add_image("MNIST Fake Images", img_grid_fake, global_step = step)
+                writer_real.add_image("MNIST Real Images", img_grid_real, global_step = step)
+
+                step += 1
 
 # def test_model():
 #     N, in_channels, Height, Width = 8, 3, 64, 64
