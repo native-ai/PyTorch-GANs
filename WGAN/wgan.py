@@ -86,7 +86,7 @@ transforms = transforms.Compose([
 dataset = datasets.MNIST(root = 'dataset', train = True, transform = transforms, download = True)
 data_loader = DataLoader(dataset, batch_size = BATCH_SIZE, shuffle = True)
 
-generator = Generator(LATENT_DIM, FEATURES_G, NUM_CHANNELS)
+generator = Generator(LATENT_DIM, FEATURES_G, NUM_CHANNELS).to(device)
 discriminator = Discriminator(NUM_CHANNELS, FEATURES_D).to(device)
 initialize_weights(generator)
 initialize_weights(discriminator)
@@ -106,13 +106,13 @@ writer_real, writer_fake, step = set_writers("real", "fake", step = 0)
 generator.train()
 discriminator.train()
 for epoch in tqdm(range(5)):
-    for batch_idx, (real, _) in tqdm(enumerate(data_loader)):
+    for batch_idx, (real, _) in enumerate(data_loader):
         real = real.to(device)
         for _ in range(DISC_ITERATIONS):
             noise = torch.randn(BATCH_SIZE, LATENT_DIM, 1, 1).to(device)
             fake = generator(noise)
-            critic_real = generator(real).reshape(-1)
-            critic_fake = generator(fake).reshape(-1)
+            critic_real = discriminator(real).reshape(-1)
+            critic_fake = discriminator(fake).reshape(-1)
             loss_disc = -(torch.mean(critic_real) - torch.mean(critic_fake))
             loss_disc.backward(retain_graph = True)
             disc_optimizer.step()
