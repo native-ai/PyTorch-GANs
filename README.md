@@ -11,6 +11,7 @@ The main aim of this repository is to implement each Generative Adversarial Netw
 * Basic GAN PyTorch Implementation
 * DCGAN PyTorch Implementation
 * WGAN PyTorch Implementation
+* CGAN PyTorch Implementation
 
 ### Features 
 - [ ] Support pip installation
