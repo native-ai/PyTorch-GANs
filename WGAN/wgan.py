@@ -60,10 +60,24 @@ def initialize_weights(model):
             nn.init.normal_(m.weight.data, 0.0, 0.02)
 
 
+def gradient_penalty(discriminator, real, fake, device = "cpu"):
+
+    BATCH_SIZE, Channels, Height, Width = real.shape
+    epsilon = torch.rand((BATCH_SIZE, 1, 1, 1)).repeat(1, Channels, Height, Width).to(device)
+    interpolated_images = real * epsilon + fake * (1 - epsilon) # 10 percent of the real image and 90 percent of the fake images
+    mixed_scores = discriminator(interpolated_images)
+    gradient = torch.autograd.grad(inputs = interpolated_images, outputs = mixed_scores, grad_outputs = torch.ones_like(mixed_scores), create_graph = True, retain_graph = True)[0]
+    gradient = gradient.view(gradient.shape[0], -1)
+    gradient_norm = gradient.norm(2, dim = 1)
+    gradient_penalty = torch.mean((gradient_norm - 1) ** 2)
+    return gradient_penalty
+
+
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # Hyperparameters according to wgan paper
 LR = 5e-5
+LR_with_grad_pen = 1e-5
 BATCH_SIZE = 64
 EPOCHS = 5
 BETAS = (0.5, 0.999)
@@ -75,7 +89,8 @@ FEATURES_D = 64
 FEATURES_G = 64
 DISC_ITERATIONS = 5
 CLIP_VAL = 0.01
-
+LAMBDA_GRADIENT_PEN = 10
+BETAS_GRADIENT_PENT = (0.0, 0.9)
 
 transforms = transforms.Compose([
     transforms.ToTensor(),
@@ -113,7 +128,9 @@ for epoch in tqdm(range(5)):
             fake = generator(noise)
             critic_real = discriminator(real).reshape(-1)
             critic_fake = discriminator(fake).reshape(-1)
+            # gp = gradient_penalty(discriminator, real, fake, device = device)
             loss_disc = -(torch.mean(critic_real) - torch.mean(critic_fake))
+            # loss_disc = (-(torch.mean(critic_real) - torch.mean(critic_fake)) + LAMBDA_GRADIENT_PEN * gp)
             loss_disc.backward(retain_graph = True)
             disc_optimizer.step()
 
