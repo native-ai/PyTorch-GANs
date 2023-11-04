@@ -55,7 +55,7 @@ class Generator(nn.Module):
     def forward(self, x, labels):
         embedding = self.embed(labels).unsqueeze(2).unsqueeze(3)
         x = torch.cat([x, embedding], dim = 1)
-        return self.net(x)
+        return self.generator(x)
 
 
 def initialize_weights(model):
@@ -76,3 +76,81 @@ def gradient_penalty(discriminator, labels, real, fake, device = "cpu"):
     return gradient_penalty
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
+
+LR = 1e-4
+BATCH_SIZE = 64
+IMAGE_SIZE = 64
+NUM_CHANNELS = 1
+NUM_CLASSES = 10
+GEN_EMBED = 100
+LATENT_DIM = 100
+EPOCHS = 100
+FEATURES_D = 16
+FEATURES_G = 16
+DISC_ITERATIONS = 5
+LAMBDA_GRADIENT_PEN = 10
+BETAS = (0.0, 0.9)
+
+transforms = transforms.Compose([
+    transforms.ToTensor(),
+    transforms.Resize(IMAGE_SIZE),
+transforms.Normalize([0.5 for _ in range(NUM_CHANNELS)], [0.5 for _ in range(NUM_CHANNELS)])
+])
+
+dataset = datasets.MNIST(root = "dataset/", transform = transforms, download = True)
+data_loader = DataLoader(dataset, batch_size = BATCH_SIZE, shuffle = True)
+generator = Generator(LATENT_DIM, NUM_CHANNELS, FEATURES_G, NUM_CLASSES, IMAGE_SIZE, GEN_EMBED).to(device)
+discriminator = Discriminator(NUM_CHANNELS, FEATURES_D, NUM_CLASSES, IMAGE_SIZE).to(device)
+initialize_weights(generator)
+initialize_weights(discriminator)
+
+gen_optimizer = optim.Adam(generator.parameters(), lr = LR, betas = BETAS)
+disc_optimizer = optim.Adam(discriminator.parameters(), lr = LR, betas = BETAS)
+
+fixed_noise = torch.randn(32, LATENT_DIM, 1, 1).to(device)
+def set_writers(first, second, step = 0):
+    writer_real = SummaryWriter(f"logs/{first}")
+    writer_fake = SummaryWriter(f"logs/{second}")
+    step = step
+    return writer_real, writer_fake, step
+
+writer_real, writer_fake, step = set_writers("real", "fake", step = 0)
+
+generator.train()
+discriminator.train()
+
+for epoch in range(EPOCHS):
+    for batch_idx, (real, labels) in enumerate(data_loader):
+        real = real.to(device)
+        labels = labels.to(device)
+        for _ in range(DISC_ITERATIONS):
+            noise = torch.randn(BATCH_SIZE, LATENT_DIM, 1, 1).to(device)
+            fake = generator(noise, labels)
+            critic_real = discriminator(real, labels).reshape(-1)
+            critic_fake = discriminator(fake, labels).reshape(-1)
+            gp = gradient_penalty(discriminator, labels, real, fake, device = device)
+            # loss_disc = -(torch.mean(critic_real) - torch.mean(critic_fake))
+            loss_disc = (-(torch.mean(critic_real) - torch.mean(critic_fake)) + LAMBDA_GRADIENT_PEN * gp)
+            loss_disc.backward(retain_graph = True)
+            disc_optimizer.step()
+
+        output = discriminator(fake, labels).reshape(-1)
+        loss_gen = -torch.mean(output)
+        generator.zero_grad()
+        loss_gen.backward()
+        gen_optimizer.step()
+
+        if batch_idx % 100 == 0:
+            print(f"Epoch [{epoch}/{EPOCHS}] Batch {batch_idx}/{len(data_loader)} Loss Discriminator: {loss_disc:.4f}, Loss Generator: {loss_gen:.4f}")
+
+            with torch.no_grad():
+                fake = generator(noise, labels)
+                img_grid_real = torchvision.utils.make_grid(real[:64], normalize = True)
+                img_grid_fake = torchvision.utils.make_grid(fake[:64], normalize = True)
+
+                writer_real.add_image("Real", img_grid_real, global_step = step)
+                writer_fake.add_image("Fake", img_grid_fake, global_step = step)
+
+            step += 1
+            generator.train()
+            discriminator.train()
