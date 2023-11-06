@@ -6,16 +6,15 @@ class CNNBlock(nn.Module):
         super().__init__()
         self.conv_block = nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size = 4, stride = stride, bias = False, padding_mode = "reflect"),
-            nn.BatchNorm2d(out_channels),
+            nn.BatchNorm2d(out_channels), # TODO: will be changed to nn.InstanceNorm2d()
             nn.LeakyReLU(0.2)
         )
-
 
     def forward(self, x):
         return self.conv_block(x)
 
 
-class Discriminator():
+class Discriminator(nn.Module):
     def __init__(self, in_channels = 3, features_d = [64, 128, 256, 512]):
         super().__init__()
         self.initial = nn.Sequential(
@@ -37,11 +36,10 @@ class Discriminator():
         x = self.initial(x)
         return self.model(x)
 
-
 def disc_test():
     x = torch.randn([1, 3, 256, 256])
     y = torch.randn([1, 3, 256, 256])
-    model = Discriminator()
+    model = Discriminator(in_channels = 3)
     preds = model(x, y)
     print(preds.shape)
 
