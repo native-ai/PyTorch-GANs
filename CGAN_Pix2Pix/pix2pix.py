@@ -36,16 +36,6 @@ class Discriminator(nn.Module):
         x = self.initial(x)
         return self.model(x)
 
-# def disc_test():
-#     x = torch.randn([1, 3, 256, 256])
-#     y = torch.randn([1, 3, 256, 256])
-#     model = Discriminator(in_channels = 3)
-#     preds = model(x, y)
-#     print(preds.shape)
-#
-# if __name__ == "__main__":
-#     disc_test()
-
 
 class CNNBlock2(nn.Module):
     def __init__(self, in_channels, out_channels, downsample=True, activation="relu", use_dropout=False):
@@ -103,7 +93,7 @@ class Generator(nn.Module):
         self.fourth_up = CNNBlock2(features_g * 8 * 2, features_g * 8, downsample = False, activation = "relu", use_dropout = True)
         self.fifth_up = CNNBlock2(features_g * 8 * 2, features_g * 4, downsample = False, activation = "relu", use_dropout = True)
         self.sixth_up = CNNBlock2(features_g * 4 * 2, features_g * 2, downsample = False, activation = "relu", use_dropout = True)
-        self.fifth_up = CNNBlock2(features_g * 2 * 2, features_g, downsample = False, activation = "relu", use_dropout = True)
+        self.seventh_up = CNNBlock2(features_g * 2 * 2, features_g, downsample = False, activation = "relu", use_dropout = True)
 
         self.last_up = nn.Sequential(
             nn.ConvTranspose2d(features_g * 2, in_channels, kernel_size = 4, stride = 2, padding = 1),
@@ -111,4 +101,19 @@ class Generator(nn.Module):
         )
 
     def forward(self, x):
-        pass
+        first_down = self.init_down(x)
+        second_down = self.first_down(first_down)
+        third_down = self.second_down(second_down)
+        fourth_down = self.third_down(third_down)
+        fifth_down = self.fourth_down(fourth_down)
+        sixth_down = self.fifth_down(fifth_down)
+        seventh_down = self.sixth_down(sixth_down)
+        bottleneck = self.bottleneck(seventh_down)
+        first_up = self.first_up(bottleneck)
+        second_up = self.second_up(torch.cat([first_up, seventh_down], dim = 1))
+        third_up = self.third_up(torch.cat([second_up, sixth_down], dim = 1))
+        fourth_up = self.fourth_up(torch.cat([third_up, fifth_down], dim = 1))
+        fifth_up = self.fifth_up(torch.cat([fourth_up, fourth_down], dim = 1))
+        sixth_up = self.sixth_up(torch.cat([fifth_up, third_down], dim = 1))
+        seventh_up = self.seventh_up(torch.cat([sixth_up, second_down], dim = 1))
+        return self.last_up(torch.cat([seventh_up, first_down], dim = 1))
