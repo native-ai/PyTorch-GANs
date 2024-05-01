@@ -14,5 +14,7 @@ The main aim of this repository is to implement each Generative Adversarial Netw
 * CGAN PyTorch Implementation
 * Pix2Pix CGAN PyToch Implementation
 
-### Features 
-- [ ] Support pip installation
+### Features will be added
+- [ ] Will be a HUB called GAN-HUB
+- [ ] Support for every kind of Datasets
+- [ ] Support for pip installation
